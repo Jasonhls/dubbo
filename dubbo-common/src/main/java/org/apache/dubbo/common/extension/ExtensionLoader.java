@@ -655,6 +655,12 @@ public class ExtensionLoader<T> {
             if (wrap) {
 
                 List<Class<?>> wrapperClassesList = new ArrayList<>();
+                /**
+                 * cachedWrapperClasses中包含三种Class，如下：
+                 * org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper
+                 * org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper
+                 * org.apache.dubbo.qos.protocol.QosProtocolWrapper
+                 */
                 if (cachedWrapperClasses != null) {
                     wrapperClassesList.addAll(cachedWrapperClasses);
                     wrapperClassesList.sort(WrapperComparator.COMPARATOR);
@@ -664,8 +670,14 @@ public class ExtensionLoader<T> {
                 if (CollectionUtils.isNotEmpty(wrapperClassesList)) {
                     for (Class<?> wrapperClass : wrapperClassesList) {
                         Wrapper wrapper = wrapperClass.getAnnotation(Wrapper.class);
+                        //如果wrapperClass中不包含@Wrapper注解，或包含@Wrapper注解，并且该注解中的matches包含name，并且mismatches中不包含name
                         if (wrapper == null
                                 || (ArrayUtils.contains(wrapper.matches(), name) && !ArrayUtils.contains(wrapper.mismatches(), name))) {
+                            /**
+                             * 寻找wrapperClass中入参参数类型为type类型的构造器（即Constructor），然后执行Constructor.newInstance方法，
+                             * 该方法就会创建wrapperClass对应的实例对象，这里的type是org.apache.dubbo.rpc.Protocol
+                             * injectExtension方法就是执行对象的set方法
+                             */
                             instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
                         }
                     }
@@ -673,6 +685,7 @@ public class ExtensionLoader<T> {
             }
 
             initExtension(instance);
+            //最后这里返回的是QosProtocolWrapper对象
             return instance;
         } catch (Throwable t) {
             throw new IllegalStateException("Extension instance (name: " + name + ", class: " +
@@ -692,16 +705,19 @@ public class ExtensionLoader<T> {
 
         try {
             for (Method method : instance.getClass().getMethods()) {
+                //如果不是set方法，就跳过
                 if (!isSetter(method)) {
                     continue;
                 }
                 /**
                  * Check {@link DisableInject} to see if we need auto injection for this property
                  */
+                //如果方法包含了注解@DisableInject，就跳过
                 if (method.getAnnotation(DisableInject.class) != null) {
                     continue;
                 }
                 Class<?> pt = method.getParameterTypes()[0];
+                //如果是基础类Class，也跳过
                 if (ReflectUtils.isPrimitives(pt)) {
                     continue;
                 }

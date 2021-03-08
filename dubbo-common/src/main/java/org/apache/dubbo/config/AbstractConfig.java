@@ -585,6 +585,9 @@ public abstract class AbstractConfig implements Serializable {
      *
      * @see ConfigManager#addConfig(AbstractConfig)
      * @since 2.7.5
+     * 在调用getBean(ProtocolConfig.class)的时候，而AbstractConfig是ProtocolConfig的父类，
+     * 因此会调用下面这个@PostConstruct方法，下面这个方法会往ConfigManager的属性configsCache中添加缓存，key为protocol，value为ProtocolConfig实例对象，
+     * 后面在调用DubboBootstrap的start方法中，会校验ProtocolConfig是否有值，没有值，就会从ConfigManager的属性configsCache中拿取。
      */
     @PostConstruct
     public void addIntoConfigManager() {

@@ -193,6 +193,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             bootstrap.service(this);
         }
 
+        //检查配置，里面会检查ServiceConfig的父类属性protocols是否有值，没有值会去设置值
         checkAndUpdateSubConfigs();
 
         //init serviceMetadata
@@ -210,6 +211,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (shouldDelay()) {
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
+            //暴露服务的逻辑
             doExport();
         }
     }
@@ -228,6 +230,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         // Use default configs defined explicitly with global scope
         completeCompoundConfigs();
         checkDefault();
+        //检查ServiceConfig的父类属性protocols是否有值，没有值会去设置值
         checkProtocol();
         // init some null configuration.
         List<ConfigInitializer> configInitializers = ExtensionLoader.getExtensionLoader(ConfigInitializer.class)
@@ -307,6 +310,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
         }
+        //暴露服务的逻辑
         doExportUrls();
         exported();
     }
@@ -452,6 +456,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
         // export service
         String host = findConfigedHosts(protocolConfig, registryURLs, map);
+        /**
+         * 里面会实例化DubboProtocol，并把它包装成ProtocolFilterWrapper对象
+         */
         Integer port = findConfigedPorts(protocolConfig, name, map);
         URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
 
@@ -499,7 +506,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
                         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.putAttribute(EXPORT_KEY, url));
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
-
+                        /**
+                         * 下面这个方法调用过程中会先去执行ExtensionLoader.getExtension(String name)方法，传入的name为registry，
+                         * 然后返回一个QosProtocolWrapper，然后去执行QosProtocolWrapper的export方法，里面有暴露服务的核心逻辑
+                         */
                         Exporter<?> exporter = PROTOCOL.export(wrapperInvoker);
                         exporters.add(exporter);
                     }
@@ -649,6 +659,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             if (provider != null && (portToBind == null || portToBind == 0)) {
                 portToBind = provider.getPort();
             }
+            //这里的name传入的是dubbo的时候，就会
             final int defaultPort = ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(name).getDefaultPort();
             if (portToBind == null || portToBind == 0) {
                 portToBind = defaultPort;

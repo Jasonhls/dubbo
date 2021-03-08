@@ -52,6 +52,14 @@ public class DubboNamespaceHandler extends NamespaceHandlerSupport implements Co
         Version.checkDuplicate(DubboNamespaceHandler.class);
     }
 
+    /**
+     * AbstractApplicationContext的refresh方法中obtainFreshBeanFactory中，是加载解析bean定义的xml文件的逻辑，最后bean定义都会被解析成BeanDefinition对象，
+     * 存放在AbstractApplicationContext的属性beanDefinitionMap中，然后这个过程中，会读取所有包的META-INFO/spring.handlers文件，dubbo相对应的包也有这个文件，
+     * 会把spring.handlers里面的key和value存储起来，然后解析读取xml文件时候，根据xml文件中的namespaceUri的值，找到对应在spring.handlers文件中的value值，
+     * 然后根据value去反射，比如解析dubbo的xml文件时候，读取的namespaceUri为http://code.alibabatech.com/schema/dubbo，该key在spring.handlers文件中对应的value为
+     * org.apache.dubbo.config.spring.schema.DubboNamespaceHandler，然后根据这个value反射成DubboNamespaceHandler实例，然后执行该
+     * NamespaceHandler的init方法，随后解析bean定义的xml文件的过程的时候，会执行parser方法。
+     */
     @Override
     public void init() {
         registerBeanDefinitionParser("application", new DubboBeanDefinitionParser(ApplicationConfig.class, true));

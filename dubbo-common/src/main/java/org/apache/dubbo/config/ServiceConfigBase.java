@@ -205,6 +205,7 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
         if (CollectionUtils.isEmpty(protocols) && provider != null) {
             setProtocols(provider.getProtocols());
         }
+        //设置ServiceConfig的父类属性protocols的值
         convertProtocolIdsToProtocols();
     }
 

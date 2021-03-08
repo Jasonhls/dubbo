@@ -61,6 +61,7 @@ public class QosProtocolWrapper implements Protocol {
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         if (UrlUtils.isRegistry(invoker.getUrl())) {
             startQosServer(invoker.getUrl());
+            //执行ProtocolFilterWrapper的export方法
             return protocol.export(invoker);
         }
         return protocol.export(invoker);

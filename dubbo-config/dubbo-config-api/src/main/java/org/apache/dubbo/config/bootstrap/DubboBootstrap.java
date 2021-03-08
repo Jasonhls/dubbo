@@ -886,6 +886,9 @@ public class DubboBootstrap extends GenericEventListener {
                 logger.info(NAME + " is starting...");
             }
             // 1. export Dubbo Services
+            /**
+             * 暴露dubb服务的逻辑
+             */
             exportServices();
 
             // Not only provider register
@@ -1076,6 +1079,7 @@ public class DubboBootstrap extends GenericEventListener {
             ServiceConfig serviceConfig = (ServiceConfig) sc;
             serviceConfig.setBootstrap(this);
 
+            //如果是异步
             if (exportAsync) {
                 ExecutorService executor = executorRepository.getServiceExporterExecutor();
                 Future<?> future = executor.submit(() -> {
@@ -1084,6 +1088,7 @@ public class DubboBootstrap extends GenericEventListener {
                 });
                 asyncExportingFutures.add(future);
             } else {
+                //同步暴露服务的逻辑
                 sc.export();
                 exportedServices.add(sc);
             }
