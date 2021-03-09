@@ -521,6 +521,7 @@ public class DubboBootstrap extends GenericEventListener {
 
         ApplicationModel.initFrameworkExts();
 
+        //这里会启动注册中心，并获取注册中心客户端
         startConfigCenter();
 
         loadRemoteConfigs();
@@ -621,6 +622,7 @@ public class DubboBootstrap extends GenericEventListener {
         if (CollectionUtils.isNotEmpty(configCenters)) {
             CompositeDynamicConfiguration compositeDynamicConfiguration = new CompositeDynamicConfiguration();
             for (ConfigCenterConfig configCenter : configCenters) {
+                //prepareEnvironment(configCenter) 准备注册中心环境
                 compositeDynamicConfiguration.addConfiguration(prepareEnvironment(configCenter));
             }
             environment.setDynamicConfiguration(compositeDynamicConfiguration);
@@ -881,6 +883,9 @@ public class DubboBootstrap extends GenericEventListener {
     public DubboBootstrap start() {
         if (started.compareAndSet(false, true)) {
             startup.set(false);
+            /**
+             * 初始化各种，比如注册中心及其配置就是这里面获取的
+             */
             initialize();
             if (logger.isInfoEnabled()) {
                 logger.info(NAME + " is starting...");
@@ -1026,6 +1031,7 @@ public class DubboBootstrap extends GenericEventListener {
             if (!configCenter.checkOrUpdateInited()) {
                 return null;
             }
+            //获取注册中心的配置
             DynamicConfiguration dynamicConfiguration = getDynamicConfiguration(configCenter.toUrl());
             String configContent = dynamicConfiguration.getProperties(configCenter.getConfigFile(), configCenter.getGroup());
 
@@ -1083,6 +1089,7 @@ public class DubboBootstrap extends GenericEventListener {
             if (exportAsync) {
                 ExecutorService executor = executorRepository.getServiceExporterExecutor();
                 Future<?> future = executor.submit(() -> {
+                    //异步暴露服务的逻辑
                     sc.export();
                     exportedServices.add(sc);
                 });

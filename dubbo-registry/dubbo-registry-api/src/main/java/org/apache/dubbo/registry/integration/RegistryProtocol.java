@@ -192,7 +192,9 @@ public class RegistryProtocol implements Protocol {
 
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
+        //注册中心地址
         URL registryUrl = getRegistryUrl(originInvoker);
+        //服务提供者地址
         // url to export locally
         URL providerUrl = getProviderUrl(originInvoker);
 
@@ -206,6 +208,9 @@ public class RegistryProtocol implements Protocol {
 
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
         //export invoker
+        /**
+         * 这里会调用到DubboProtocol的export方法
+         */
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry

@@ -58,6 +58,7 @@ public class ProtocolFilterWrapper implements Protocol {
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         if (UrlUtils.isRegistry(invoker.getUrl())) {
+            //会调用ProtocolListenerWrapper的export方法
             return protocol.export(invoker);
         }
         return protocol.export(builder.buildInvokerChain(invoker, SERVICE_FILTER_KEY, CommonConstants.PROVIDER));

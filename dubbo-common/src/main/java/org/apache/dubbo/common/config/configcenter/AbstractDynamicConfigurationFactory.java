@@ -36,6 +36,7 @@ public abstract class AbstractDynamicConfigurationFactory implements DynamicConf
     @Override
     public final DynamicConfiguration getDynamicConfiguration(URL url) {
         String key = url == null ? DEFAULT_KEY : url.toServiceString();
+        //如果注册中心是zookeeper，就执行zookeeperDynamicConfigurationFactory的createDynamicConfiguration方法
         return dynamicConfigurations.computeIfAbsent(key, k -> createDynamicConfiguration(url));
     }
 

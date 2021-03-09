@@ -327,6 +327,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 serviceMetadata
         );
 
+        //获取注册的url信息
         List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true);
 
         for (ProtocolConfig protocolConfig : protocols) {
@@ -337,6 +338,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             repository.registerService(pathKey, interfaceClass);
             // TODO, uncomment this line once service key is unified
             serviceMetadata.setServiceKey(pathKey);
+            //暴露服务的逻辑
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
@@ -457,7 +459,8 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         // export service
         String host = findConfigedHosts(protocolConfig, registryURLs, map);
         /**
-         * 里面会实例化DubboProtocol，并把它包装成ProtocolFilterWrapper对象
+         * 传进去的name值为dubbo，然后里面会实例化DubboProtocol对象，包装过程：最终会包装成QosProtocolWrapper对象，它包含ProtocolFilterWrapper对象，
+         * ProtocolFilterWrapper对象又包装ProtocolListenerWrapper对象，ProtocolListenerWrapper包装实例化的DubboProtocol对象。
          */
         Integer port = findConfigedPorts(protocolConfig, name, map);
         URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
@@ -659,7 +662,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             if (provider != null && (portToBind == null || portToBind == 0)) {
                 portToBind = provider.getPort();
             }
-            //这里的name传入的是dubbo的时候，就会
+            /**
+             * 这里的name传入的是dubbo的时候，创建QosProtocolWrapper对象，里面会包裹着DubboProtocol对象
+             */
             final int defaultPort = ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(name).getDefaultPort();
             if (portToBind == null || portToBind == 0) {
                 portToBind = defaultPort;

@@ -53,6 +53,7 @@ public class ZookeeperDynamicConfiguration extends TreePathDynamicConfiguration 
         this.cacheListener = new CacheListener(rootPath, initializedLatch);
         this.executor = Executors.newFixedThreadPool(1, new NamedThreadFactory(this.getClass().getSimpleName(), true));
 
+        //根据url创建zookeeper的客户端
         zkClient = zookeeperTransporter.connect(url);
         zkClient.addDataListener(rootPath, cacheListener, executor);
         try {
