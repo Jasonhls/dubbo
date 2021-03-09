@@ -88,19 +88,37 @@ public class AdaptiveClassCodeGenerator {
      */
     public String generate() {
         // no need to generate adaptive class since there's no adaptive method found.
+        //检查是否有被@Adaptive注解标注的方法，一个也没有，就抛出异常
         if (!hasAdaptiveMethod()) {
             throw new IllegalStateException("No adaptive method exist on extension " + type.getName() + ", refuse to create the adaptive class!");
         }
 
+        /**
+         * 开始生成代码，代码生成的顺序与Java文件内容顺序一致，首先会生成package语句，然后生成import语句，
+         * 紧着生成类名等代码。
+         */
         StringBuilder code = new StringBuilder();
+        //生成 package 代码：package + type 所在包 + ; + \n
         code.append(generatePackageInfo());
+        //生成 import 代码：import + ExtensionLoader的全限定名 + ; + \n
         code.append(generateImports());
+        //生成类代码：public class + type简单名称 + $Adaptive + implements + type全限定名 + { + \n
         code.append(generateClassDeclaration());
 
+        /**
+         * 以DubboStudy中的com.cn.spi.dubboadaptive.AdaptiveExt为例，生成的代码如下：
+         * package com.cn.spi.dubboadaptive;
+         * package org.apache.dubbo.common.extension.ExtensionLoader;
+         * public class AdaptiveExt$Adaptive implements com.cn.spi.dubboadaptive.AdaptiveExt {
+         *
+         */
+
+        //接下来生成对应的方法
         Method[] methods = type.getMethods();
         for (Method method : methods) {
             code.append(generateMethod(method));
         }
+        //拼接类最后的反大括号
         code.append("}");
 
         if (logger.isDebugEnabled()) {
@@ -156,11 +174,17 @@ public class AdaptiveClassCodeGenerator {
      * generate method declaration
      */
     private String generateMethod(Method method) {
+        //获取方法的返回类型的全限定名
         String methodReturnType = method.getReturnType().getCanonicalName();
+        //获取方法名
         String methodName = method.getName();
+        //获取方法体内容
         String methodContent = generateMethodContent(method);
+        //获取方法参数
         String methodArgs = generateMethodArguments(method);
+        //获取方法的异常部分，包含throw 字符串，比如 throw IllegalArgumentException
         String methodThrows = generateMethodThrows(method);
+        //拼接格式为：public %s %s(%s) %s {\n%s}\n
         return String.format(CODE_METHOD_DECLARATION, methodReturnType, methodName, methodArgs, methodThrows, methodContent);
     }
 

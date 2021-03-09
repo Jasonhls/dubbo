@@ -605,18 +605,25 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     public T getAdaptiveExtension() {
+        //从缓存中获取自适应扩展instance
         Object instance = cachedAdaptiveInstance.get();
+        //没有命中缓存
         if (instance == null) {
+            //创建自适应扩展instance异常不为空，就抛出异常
             if (createAdaptiveInstanceError != null) {
                 throw new IllegalStateException("Failed to create adaptive instance: " +
                         createAdaptiveInstanceError.toString(),
                         createAdaptiveInstanceError);
             }
 
+            //创建自适应扩展instance异常为空
+            //加锁，双重检查
             synchronized (cachedAdaptiveInstance) {
                 instance = cachedAdaptiveInstance.get();
+                //继续没有命中缓存
                 if (instance == null) {
                     try {
+                        //创建自适应扩展instance
                         instance = createAdaptiveExtension();
                         cachedAdaptiveInstance.set(instance);
                     } catch (Throwable t) {
@@ -627,6 +634,7 @@ public class ExtensionLoader<T> {
             }
         }
 
+        //返回自适应扩展instance
         return (T) instance;
     }
 
@@ -958,7 +966,9 @@ public class ExtensionLoader<T> {
                                 line = line.substring(i + 1).trim();
                             }
                             if (line.length() > 0 && !isExcluded(line, excludedPackages)) {
-                                //加载类，并通过 loadClass 方法对类进行缓存，会检查目标类上是否有 Adaptive 注解
+                                /**
+                                 *  加载类，并通过 loadClass 方法对类进行缓存，会检查目标类上是否有 Adaptive 注解
+                                 */
                                 loadClass(extensionClasses, resourceURL, Class.forName(line, true, classLoader), name, overridden);
                             }
                         } catch (Throwable t) {
@@ -995,6 +1005,9 @@ public class ExtensionLoader<T> {
         }
         //检查目标类上是否有 Adaptive 注解
         if (clazz.isAnnotationPresent(Adaptive.class)) {
+            /**
+             * 如果有扩展类被@Adaptive注解修饰了，那么会把该类Class赋值给ExtensionLoader的属性cachedAdaptiveClass
+             */
             cacheAdaptiveClass(clazz, overridden);
         } else if (isWrapperClass(clazz)) { // 检查clazz是否是 Wrapper 类型，即是否有构造参数为clazz的构造函数
             cacheWrapperClass(clazz);
@@ -1122,9 +1135,16 @@ public class ExtensionLoader<T> {
         return name.toLowerCase();
     }
 
+    //创建自适应扩展instance
     @SuppressWarnings("unchecked")
     private T createAdaptiveExtension() {
         try {
+            //获取自适应扩展类，并通过反射实例化，然后就是dubbo IOC调用 injectExtension 方法向扩展实例中注入依赖
+            /**
+             * 调用getAdaptiveExtensionClass方法获取自适应扩展Class对象
+             * 通过反射进行实例化
+             * 调用injectExtension方法向扩展实例中注入依赖
+             */
             return injectExtension((T) getAdaptiveExtensionClass().newInstance());
         } catch (Exception e) {
             throw new IllegalStateException("Can't create adaptive extension " + type + ", cause: " + e.getMessage(), e);
@@ -1132,17 +1152,33 @@ public class ExtensionLoader<T> {
     }
 
     private Class<?> getAdaptiveExtensionClass() {
+        // 通过 SPI 获取所有的扩展类，在这一步判断所有的扩展类上有没有 @Adaptive注解，如果有，将cachedAdaptiveClass赋值
+        /**
+         * getExtensionClasses方法用于获取某个接口的所有实现类，比如该方法可以获取Protocol接口的DubboProtocol、HttpProtocol、
+         * InjvmProtocol等实现类。在获取实现类的过程中，如果某个实现类被 @Adaptive 注解修饰了，那么该类就会被赋值给 cachedAdaptiveClass 变量。
+         * 如果所有的实现类均未被 @Adaptive 注解修饰，那么执行第三步逻辑，创建自适应扩展类。
+         */
         getExtensionClasses();
+        //判断 cachedAdaptiveClass是否有值，如果有直接返回
         if (cachedAdaptiveClass != null) {
             return cachedAdaptiveClass;
         }
+        //创建自适应扩展类
         return cachedAdaptiveClass = createAdaptiveExtensionClass();
     }
 
+    /**
+     * 创建自适应扩展类
+     * @return
+     */
     private Class<?> createAdaptiveExtensionClass() {
+        //构建自适应扩展代码
         String code = new AdaptiveClassCodeGenerator(type, cachedDefaultName).generate();
+        //获取编译器实现类
         ClassLoader classLoader = findClassLoader();
+        //Dubbo默认使用javassist作为编译器
         org.apache.dubbo.common.compiler.Compiler compiler = ExtensionLoader.getExtensionLoader(org.apache.dubbo.common.compiler.Compiler.class).getAdaptiveExtension();
+        //编译代码，生成Class，得到代理类Class实例
         return compiler.compile(code, classLoader);
     }
 
