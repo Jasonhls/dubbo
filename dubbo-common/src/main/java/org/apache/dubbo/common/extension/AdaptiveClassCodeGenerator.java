@@ -248,6 +248,7 @@ public class AdaptiveClassCodeGenerator {
             //获取Adaptive注解的value值
             String[] value = getMethodAdaptiveValue(adaptiveAnnotation);
 
+            //检查是否有Invocation类型的参数
             boolean hasInvocation = hasInvocationArgument(method);
 
             code.append(generateInvocationArgumentNullCheck(method));
@@ -283,6 +284,8 @@ public class AdaptiveClassCodeGenerator {
                 if (null != defaultExtName) {
                     if (!"protocol".equals(value[i])) {
                         if (hasInvocation) {
+                            //如果有Invocation类型的参数，生成getMethodName 方法调用代码，格式为：
+                            // String methodName = argN.getMethodName();
                             getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                         } else {
                             getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);
