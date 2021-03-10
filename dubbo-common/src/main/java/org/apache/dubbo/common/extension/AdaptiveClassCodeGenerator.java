@@ -116,6 +116,9 @@ public class AdaptiveClassCodeGenerator {
         //接下来生成对应的方法
         Method[] methods = type.getMethods();
         for (Method method : methods) {
+            /**
+             * generateMethod方法就是生成方法体代码的核心逻辑
+             */
             code.append(generateMethod(method));
         }
         //拼接类最后的反大括号
@@ -187,6 +190,7 @@ public class AdaptiveClassCodeGenerator {
         //获取方法的异常部分，包含throw 字符串，比如 throw IllegalArgumentException
         String methodThrows = generateMethodThrows(method);
         //拼接格式为：public %s %s(%s) %s {\n%s}\n
+        // 生成完整的方法
         return String.format(CODE_METHOD_DECLARATION, methodReturnType, methodName, methodArgs, methodThrows, methodContent);
     }
 
@@ -251,15 +255,20 @@ public class AdaptiveClassCodeGenerator {
             //检查是否有Invocation类型的参数
             boolean hasInvocation = hasInvocationArgument(method);
 
+            //生成为Invocation类型的参数判空，并且调用getMethodName()方法的代码
             code.append(generateInvocationArgumentNullCheck(method));
 
+            //生成扩展名获取逻辑
             code.append(generateExtNameAssignment(value, hasInvocation));
             // check extName == null?
+            // 生成 extName 判空代码
             code.append(generateExtNameNullCheck(value));
 
+            //生成扩展加载与目标方法调用逻辑，下面代码逻辑用于根据扩展名加载扩展实例，并调用扩展实例的目标方法
             code.append(generateExtensionAssignment());
 
             // return statement
+            //生成方法的返回语句
             code.append(generateReturnAndInvocation(method));
         }
 
@@ -275,53 +284,82 @@ public class AdaptiveClassCodeGenerator {
 
     /**
      * generate extName assigment code
+     * value是注解@Addaptive的value值，hasInvocation表示的是是否有Invocation类型的参数
      */
     private String generateExtNameAssignment(String[] value, boolean hasInvocation) {
         // TODO: refactor it
         String getNameCode = null;
         for (int i = value.length - 1; i >= 0; --i) {
             if (i == value.length - 1) {
+                //如果默认扩展名不为空
                 if (null != defaultExtName) {
+                    //protocol 是url的一部分，可通过 getProtocol 方法获取，其他的则是从 URL 参数中获取。
+                    //因为获取方式不同，所以这里要判断 value[i] 是否为 protocol
                     if (!"protocol".equals(value[i])) {
+                        // hasInvocation 用于标识方法参数列表中是否有 Invocation 类型参数
                         if (hasInvocation) {
-                            //如果有Invocation类型的参数，生成getMethodName 方法调用代码，格式为：
-                            // String methodName = argN.getMethodName();
+                            //生成的代码功能等价于下面的代码：
+                            // url.getMethodParameter(methodName, value[i], defaultExtName)
+                            // 以 LoadBalance 接口的 select 方法为例，最终生成的代码如下：
+                            // url.getMethodParameter(methodName, "loadBalance", "random")
                             getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                         } else {
+                            // 生成的代码功能等价于下面的代码：
+                            // url.getParameter(value[i], defaultExtName)
                             getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);
                         }
                     } else {
+                        //生成的代码功能等价于下面的代码：
+                        // (url.getProtocol() == null ? defaultExtName : url.getProtocol())
                         getNameCode = String.format("( url.getProtocol() == null ? \"%s\" : url.getProtocol() )", defaultExtName);
                     }
                 } else {
+                    //默认扩展名为空
                     if (!"protocol".equals(value[i])) {
                         if (hasInvocation) {
+                            //生成的代码格式同上
                             getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                         } else {
+                            //生成的代码功能等价于下面的代码：
+                            // url.getParameter(values[i])
                             getNameCode = String.format("url.getParameter(\"%s\")", value[i]);
                         }
                     } else {
+                        // 生成从 URL 中获取协议的代码，比如 "dubbo"
                         getNameCode = "url.getProtocol()";
                     }
                 }
             } else {
                 if (!"protocol".equals(value[i])) {
                     if (hasInvocation) {
+                        //生成代码格式同上
                         getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                     } else {
+                        //生成的代码功能等价于下面的代码：
+                        // url.getParameter(value[i], getNameCode)
+                        // 以 Transporter 接口的 connect 方法为例，最终生成的代码如下：
+                        // url.getParameter("client", url.getParameter("transporter", "netty"))
                         getNameCode = String.format("url.getParameter(\"%s\", %s)", value[i], getNameCode);
                     }
                 } else {
+                    // 生成的代码功能等价于下面的代码：
+                    // url.getProtocol() == null ? getNameCode : url.getProtocol()
+                    //以 Protocol 接口的 connect 方法为例，最终生成的代码如下：
+                    // url.getProtocol() == null ? "dubbo" : url.getProtocol()
                     getNameCode = String.format("url.getProtocol() == null ? (%s) : url.getProtocol()", getNameCode);
                 }
             }
         }
 
+        // 生成 extName 赋值代码
         return String.format(CODE_EXT_NAME_ASSIGNMENT, getNameCode);
     }
 
     /**
      * @return
+     * 生成扩展获取代码，格式如下：
+     * type全限定名 extension = (type全限定名)ExtensionLoader全限定名.getExtensionLoader(type全限定名.class).getExtension(extName);
+     * 注意： 格式化字符串中的 %<s 表示使用前一个转换符所描述的参数，即 type 全限定名
      */
     private String generateExtensionAssignment() {
         return String.format(CODE_EXTENSION_ASSIGNMENT, type.getName(), ExtensionLoader.class.getSimpleName(), type.getName());
@@ -329,10 +367,17 @@ public class AdaptiveClassCodeGenerator {
 
     /**
      * generate method invocation statement and return it if necessary
+     * 以Protocol接口举例说明，按照下面方法生成的代码如下:
+     * org.apache.dubbo.rpc.Protocol extension = (org.apache.dubbo.rpc.Protocol) ExtensionLoader
+     *      .getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension(extName);
+     * return extension.refer(arg0, arg1);
      */
     private String generateReturnAndInvocation(Method method) {
+        // 如果返回类型为非Void.class，则生成 return 语句
         String returnStatement = method.getReturnType().equals(void.class) ? "" : "return ";
 
+        //生成目标方法调用逻辑，格式为：
+        // extension.方法名(arg0, arg2, ..., argN);
         String args = IntStream.range(0, method.getParameters().length)
                 .mapToObj(i -> String.format(CODE_EXTENSION_METHOD_INVOKE_ARGUMENT, i))
                 .collect(Collectors.joining(", "));
@@ -350,6 +395,9 @@ public class AdaptiveClassCodeGenerator {
 
     /**
      * generate code to test argument of type <code>Invocation</code> is null
+     * 生成为Invocation类型的参数判空，并且调用getMethodName()方法的代码，生成的代码格式如下：
+     * if(argN == null) throw new IllegalArgumentException("invocation == null");
+     * String methodName = argN.getMethodName();
      */
     private String generateInvocationArgumentNullCheck(Method method) {
         Class<?>[] pts = method.getParameterTypes();

@@ -1174,7 +1174,9 @@ public class ExtensionLoader<T> {
      * @return
      */
     private Class<?> createAdaptiveExtensionClass() {
-        //构建自适应扩展代码
+        /**
+         *构建自适应扩展代码，核心逻辑在generate()方法中
+         */
         String code = new AdaptiveClassCodeGenerator(type, cachedDefaultName).generate();
         //获取编译器实现类
         ClassLoader classLoader = findClassLoader();
