@@ -157,10 +157,12 @@ public class AdaptiveClassCodeGenerator {
 
     /**
      * get index of parameter with type URL
+     * 获取方法入参中为URL类型参数的位置
      */
     private int getUrlTypeIndex(Method method) {
         int urlTypeIndex = -1;
         Class<?>[] pts = method.getParameterTypes();
+        //遍历参数列表，确定URL位置
         for (int i = 0; i < pts.length; ++i) {
             if (pts[i].equals(URL.class)) {
                 urlTypeIndex = i;
@@ -225,19 +227,25 @@ public class AdaptiveClassCodeGenerator {
         Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
         StringBuilder code = new StringBuilder(512);
         if (adaptiveAnnotation == null) {
+            //${无 Adaptive 注解方法代码生成逻辑}
             return generateUnsupported(method);
         } else {
+            //获取该方法中参数类型为URL类型的位置
             int urlTypeIndex = getUrlTypeIndex(method);
 
             // found parameter in URL type
+            //如果参数列表中存在 URL 类型参数
             if (urlTypeIndex != -1) {
                 // Null Point check
+                //为 URL 参数类型生成判空代码，格式如下：
                 code.append(generateUrlNullCheck(urlTypeIndex));
             } else {
                 // did not find parameter in URL type
+                //参数列表中不存在 URL 类型参数
                 code.append(generateUrlAssignmentIndirectly(method));
             }
 
+            //获取Adaptive注解的value值
             String[] value = getMethodAdaptiveValue(adaptiveAnnotation);
 
             boolean hasInvocation = hasInvocationArgument(method);
@@ -353,7 +361,9 @@ public class AdaptiveClassCodeGenerator {
     private String[] getMethodAdaptiveValue(Adaptive adaptiveAnnotation) {
         String[] value = adaptiveAnnotation.value();
         // value is not set, use the value generated from class name as the key
+        //如果value为空数组
         if (value.length == 0) {
+            // 获取类名，并将类名转换为字符数组，比如LoadBalance经过处理后，得到的是load.balance
             String splitName = StringUtils.camelToSplitName(type.getSimpleName(), ".");
             value = new String[]{splitName};
         }
@@ -372,9 +382,18 @@ public class AdaptiveClassCodeGenerator {
 
         Map<String, Integer> getterReturnUrl = new HashMap<>();
         // find URL getter method
+        //遍历方法列表，寻找可返回 URL 的 getter 方法
         for (int i = 0; i < pts.length; ++i) {
             for (Method m : pts[i].getMethods()) {
                 String name = m.getName();
+                /**
+                 * 满足下面五个条件：
+                 * 1、方法名以 get 开头，或方法名大于3个字符
+                 * 2、方法的访问权限为 public
+                 * 3、非静态方法
+                 * 4、方法参数数量为0
+                 * 5、方法的返回值类型为URL
+                 */
                 if ((name.startsWith("get") || name.length() > 3)
                         && Modifier.isPublic(m.getModifiers())
                         && !Modifier.isStatic(m.getModifiers())
@@ -387,12 +406,16 @@ public class AdaptiveClassCodeGenerator {
 
         if (getterReturnUrl.size() <= 0) {
             // getter method not found, throw
+            // 如果所有参数中均不包含可返回 URL 的 getter 方法，则抛出异常
             throw new IllegalStateException("Failed to create adaptive class for interface " + type.getName()
                     + ": not found url parameter or url attribute in parameters of method " + method.getName());
         }
 
         Integer index = getterReturnUrl.get("getUrl");
         if (index != null) {
+            /**
+             *  生成获取URL数据的代码，并为之生成判空和赋值代码
+             */
             return generateGetUrlNullCheck(index, pts[index], "getUrl");
         } else {
             Map.Entry<String, Integer> entry = getterReturnUrl.entrySet().iterator().next();
@@ -401,18 +424,47 @@ public class AdaptiveClassCodeGenerator {
     }
 
     /**
+     * 生成获取URL数据的代码，并为之生成判空和赋值代码
      * 1, test if argi is null
      * 2, test if argi.getXX() returns null
      * 3, assign url with argi.getXX()
+     * 以Protocol的 refer 和 export 方法为例
+     * refer:
+     * if(arg1 == null) {
+     *     throw new IllegalArgumentException("url == null");
+     * }
+     * export:
+     * if(arg0 == null) {
+     *     throw new IllegalArgumentException("org.apache.dubbo.rpc.Invoker argument == null");
+     * }
+     *
+     * if(arg0.getUrl == null) {
+     *     throw new IllegalArgumentException("org.apache.dubbo.rpc.Invoker argument getUrl() == null");
+     * }
      */
     private String generateGetUrlNullCheck(int index, Class<?> type, String method) {
         // Null point check
         StringBuilder code = new StringBuilder();
+        /**
+         *  为可返回 URL 的参数生成判空代码，格式如下：
+         *  if(argN== null)
+         *      throw new IllegalArgumentException(""参数全限定名 + argument == null);
+         */
         code.append(String.format("if (arg%d == null) throw new IllegalArgumentException(\"%s argument == null\");\n",
                 index, type.getName()));
+        /**
+         * 为 getter 方法返回的 URL 生成判空代码，格式如下：
+         * if(argN.getter方法名() == null)
+         *     throw new IllegalArgumentException(参数全限定名 + argument.getter方法名 == null);
+         */
         code.append(String.format("if (arg%d.%s() == null) throw new IllegalArgumentException(\"%s argument %s() == null\");\n",
                 index, method, type.getName(), method));
 
+        /**
+         * 生成赋值语句，格式如下：
+         *  URL全限定名 url = arg[N].getter方法名()，比如
+         *  org.apache.dubbo.common.URL url = invoker.getUrl();
+         */
         code.append(String.format("%s url = arg%d.%s();\n", URL.class.getName(), index, method));
         return code.toString();
     }

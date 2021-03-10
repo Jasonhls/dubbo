@@ -1163,7 +1163,9 @@ public class ExtensionLoader<T> {
         if (cachedAdaptiveClass != null) {
             return cachedAdaptiveClass;
         }
-        //创建自适应扩展类
+        /**
+         *  创建自适应扩展类
+         */
         return cachedAdaptiveClass = createAdaptiveExtensionClass();
     }
 
