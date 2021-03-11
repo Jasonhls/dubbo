@@ -270,11 +270,20 @@ public class ExtensionLoader<T> {
     public List<T> getActivateExtension(URL url, String[] values, String group) {
         //定义激活扩展类集合
         List<T> activateExtensions = new ArrayList<>();
+        //将 value 从数组转成 List
         List<String> names = values == null ? new ArrayList<>(0) : asList(values);
+        //判断 names 是否包含 -default
         if (!names.contains(REMOVE_VALUE_PREFIX + DEFAULT_KEY)) {
+            /**
+             * 通过 SPI 获取所有的扩展类
+             * 在这一步，会判断类上有 Activate 注解，如果有缓存到 cachedActivates 中
+             */
             getExtensionClasses();
+            //遍历cachedActivates
             for (Map.Entry<String, Object> entry : cachedActivates.entrySet()) {
+                // SPI 扩展点实现类名称
                 String name = entry.getKey();
+                // activate实例
                 Object activate = entry.getValue();
 
                 //activateGroup表示的是@Activate注解的group的值，activateValue表示的是@Activate注解的value值
@@ -294,12 +303,13 @@ public class ExtensionLoader<T> {
                 }
                 //判断是否匹配group，如果匹配，加入到activateExtensions集合中
                 if (isMatchGroup(group, activateGroup)
-                        && !names.contains(name)
-                        && !names.contains(REMOVE_VALUE_PREFIX + name)
-                        && isActive(activateValue, url)) {
+                        && !names.contains(name) //name不在values指定之列
+                        && !names.contains(REMOVE_VALUE_PREFIX + name) // 没排除name
+                        && isActive(activateValue, url)) {             // activate的value在url 有对应参数，就算激活
                     activateExtensions.add(getExtension(name));
                 }
             }
+            // 排序Activate
             activateExtensions.sort(ActivateComparator.COMPARATOR);
         }
         List<T> loadedExtensions = new ArrayList<>();
@@ -313,13 +323,16 @@ public class ExtensionLoader<T> {
                         loadedExtensions.clear();
                     }
                 } else {
+                    // 通过扩展名，加载扩展添加到结果集
                     loadedExtensions.add(getExtension(name));
                 }
             }
         }
+        // 添加到激活集合中
         if (!loadedExtensions.isEmpty()) {
             activateExtensions.addAll(loadedExtensions);
         }
+        // 返回符合条件的激活扩展
         return activateExtensions;
     }
 
@@ -862,6 +875,9 @@ public class ExtensionLoader<T> {
      * synchronized in getExtensionClasses
      */
     private Map<String, Class<?>> loadExtensionClasses() {
+        /**
+         * 缓存默认的扩展名
+         */
         cacheDefaultExtensionName();
 
         Map<String, Class<?>> extensionClasses = new HashMap<>();
@@ -1034,8 +1050,10 @@ public class ExtensionLoader<T> {
             //切分 name
             String[] names = NAME_SEPARATOR.split(name);
             if (ArrayUtils.isNotEmpty(names)) {
-                // 如果类上有 Active 注解，则使用 names 数组的第一个元素作为键。
-                // 存储 name 到 Active 注解对象的映射关系
+                /**
+                 * 如果类上有 Active 注解，则使用 names 数组的第一个元素作为键。
+                 * 存储 name 到 Active 注解对象的映射关系
+                 */
                 cacheActivateClass(clazz, names[0]);
                 for (String n : names) {
                     cacheName(clazz, n);
