@@ -170,6 +170,9 @@ public class ExtensionLoader<T> {
         //如果缓存中不存在，创建并保存到缓存
         if (loader == null) {
             // 先在缓存中创建，这里是线程安全的
+            /**
+             * ExtensionLoader构造方法中会调用getAdaptiveExtension方法
+             */
             EXTENSION_LOADERS.putIfAbsent(type, new ExtensionLoader<T>(type));
             //获取
             loader = (ExtensionLoader<T>) EXTENSION_LOADERS.get(type);
@@ -265,6 +268,7 @@ public class ExtensionLoader<T> {
      * @see org.apache.dubbo.common.extension.Activate
      */
     public List<T> getActivateExtension(URL url, String[] values, String group) {
+        //定义激活扩展类集合
         List<T> activateExtensions = new ArrayList<>();
         List<String> names = values == null ? new ArrayList<>(0) : asList(values);
         if (!names.contains(REMOVE_VALUE_PREFIX + DEFAULT_KEY)) {
@@ -273,17 +277,22 @@ public class ExtensionLoader<T> {
                 String name = entry.getKey();
                 Object activate = entry.getValue();
 
+                //activateGroup表示的是@Activate注解的group的值，activateValue表示的是@Activate注解的value值
                 String[] activateGroup, activateValue;
 
+                //如果是org.apache.dubbo.common.extension.Activate类型
                 if (activate instanceof Activate) {
                     activateGroup = ((Activate) activate).group();
                     activateValue = ((Activate) activate).value();
-                } else if (activate instanceof com.alibaba.dubbo.common.extension.Activate) {
+                }
+                //如果是com.alibaba.dubbo.common.extension.Active类型
+                else if (activate instanceof com.alibaba.dubbo.common.extension.Activate) {
                     activateGroup = ((com.alibaba.dubbo.common.extension.Activate) activate).group();
                     activateValue = ((com.alibaba.dubbo.common.extension.Activate) activate).value();
                 } else {
                     continue;
                 }
+                //判断是否匹配group，如果匹配，加入到activateExtensions集合中
                 if (isMatchGroup(group, activateGroup)
                         && !names.contains(name)
                         && !names.contains(REMOVE_VALUE_PREFIX + name)
