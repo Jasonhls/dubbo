@@ -193,7 +193,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             bootstrap.service(this);
         }
 
-        //检查配置，里面会检查ServiceConfig的父类属性protocols是否有值，没有值会去设置值
+        /**
+         * 检查配置，里面会检查ServiceConfig的父类属性protocols是否有值，没有值会去设置值
+         */
         checkAndUpdateSubConfigs();
 
         //init serviceMetadata
@@ -211,7 +213,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (shouldDelay()) {
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
-            //暴露服务的逻辑
+            /**
+             *  暴露服务的逻辑
+             */
             doExport();
         }
     }
@@ -228,7 +232,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
     private void checkAndUpdateSubConfigs() {
         // Use default configs defined explicitly with global scope
+        //下面这个方法用于检测 provider、application 等核心配置类对象是否为空，
+        //若为空，则尝试从其他配置类对象中获取相应的实例。
         completeCompoundConfigs();
+        //检查 provider 是否为空，为空则创建一个，并通过系统变量为其初始化
         checkDefault();
         //检查ServiceConfig的父类属性protocols是否有值，没有值会去设置值
         checkProtocol();
@@ -238,6 +245,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         configInitializers.forEach(e -> e.initServiceConfig(this));
 
         // if protocol is not injvm checkRegistry
+        // 如果 protocol 不是injvm类型，就检测Registry对象是否为空
         if (!isOnlyInJvm()) {
             checkRegistry();
         }
@@ -247,32 +255,43 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
         }
 
+        //检测 ref 是否为泛化服务类型
         if (ref instanceof GenericService) {
+            //设置 interface 为 GenericService.class
             interfaceClass = GenericService.class;
             if (StringUtils.isEmpty(generic)) {
+                //设置 generic 为true
                 generic = Boolean.TRUE.toString();
             }
         } else {
+            // ref 为非 GenericService类型
             try {
+                //设置 interface
                 interfaceClass = Class.forName(interfaceName, true, Thread.currentThread()
                         .getContextClassLoader());
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            //对interfaceClass，以及 <dubbo:method> 标签中的必要字段进行检查
             checkInterfaceAndMethods(interfaceClass, getMethods());
+            //对 ref 合法性进行检测
             checkRef();
+            // 设置 generic = "false"
             generic = Boolean.FALSE.toString();
         }
+        // local 和 stub 在功能应该是一致的，用于配置本地存根
         if (local != null) {
             if ("true".equals(local)) {
                 local = interfaceName + "Local";
             }
             Class<?> localClass;
             try {
+                //获取本地存根类
                 localClass = ClassUtils.forNameWithThreadContextClassLoader(local);
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            //检测本地存根类是否赋值给接口类，若不可赋值则会抛出异常，提醒使用者本地存根类类型不合法
             if (!interfaceClass.isAssignableFrom(localClass)) {
                 throw new IllegalStateException("The local implementation class " + localClass.getName() + " not implement interface " + interfaceName);
             }
@@ -330,6 +349,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         //获取注册的url信息
         List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true);
 
+        /**
+         * 遍历 protocols，并在每个协议下导出服务
+         */
         for (ProtocolConfig protocolConfig : protocols) {
             String pathKey = URL.buildKey(getContextPath(protocolConfig)
                     .map(p -> p + "/" + path)
