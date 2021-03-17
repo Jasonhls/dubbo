@@ -46,9 +46,19 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
         boolean multiple = attributes.getBoolean("multiple");
 
         // Single Config Bindings
+        /**
+         * 会把DubboConfigConfiguration内部类Single的bean定义注入到spring容器中，即
+         * 把dubboConfigConfiguration.Single作为key，value为对应的BeanDefinition，
+         * 添加到Spring上下文DefaultListableBeanFacotry的beanDefinitionMap中
+         */
         registerBeans(registry, DubboConfigConfiguration.Single.class);
 
         if (multiple) { // Since 2.6.6 https://github.com/apache/dubbo/issues/3193
+            /**
+             * 会把DubboConfigConfiguration内部类Multiple的bean定义注入到spring容器中，即
+             * 把dubboConfigConfiguration.Multiple作为key，value为对应的BeanDefinition，
+             * 添加到Spring上下文DefaultListableBeanFacotry的beanDefinitionMap中
+             */
             registerBeans(registry, DubboConfigConfiguration.Multiple.class);
         }
 
