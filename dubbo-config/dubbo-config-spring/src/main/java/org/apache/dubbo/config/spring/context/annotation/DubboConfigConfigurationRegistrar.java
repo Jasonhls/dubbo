@@ -50,6 +50,13 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
          * 会把DubboConfigConfiguration内部类Single的bean定义注入到spring容器中，即
          * 把dubboConfigConfiguration.Single作为key，value为对应的BeanDefinition，
          * 添加到Spring上下文DefaultListableBeanFacotry的beanDefinitionMap中
+         *
+         * 解析dubbo启动类的时候，连带@Import的内容都会进行解析，因此会执行到下面这个方法，下面这个方法又会去注入DubboConfigConfiguration的内部类Single，
+         * 将Single的时候注入到spring上下文DefaultListableBeanFactory的beanDefinitionMap过程中，会执行loadBeanDefinitionsFromRegistrars方法，
+         * 该方法又会去获取它的importBeanDefinitionRegistrars属性，这个属性中包含了ConfigurationBeanBindingsRegister对象，
+         * 会执行ConfigurationBeanBindingsRegister的registerBeanDefinitions方法，这个方法里面会获取注解@EnableConfigurationBeanBindings的value，是
+         *注解@EnableConfigurationBeanBinding的集合，然后遍历这个集合，获取@EnableConfigurationBeanBinding注解的type值，
+         * 会把type（type为org.apache.dubbo.config.ApplicationConfig）注入到spring的beanDefinitionMap中。后面就会实例化ApplicationConfig对象。
          */
         registerBeans(registry, DubboConfigConfiguration.Single.class);
 
