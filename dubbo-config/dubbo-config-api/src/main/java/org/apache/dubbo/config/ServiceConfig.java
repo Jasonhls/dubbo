@@ -535,6 +535,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             // export to remote if the config is not local (export to local only when config is local)
             //如果 scope != local，导出到远程
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
+                //如果存在注册中心地址
                 if (CollectionUtils.isNotEmpty(registryURLs)) {
                     for (URL registryURL : registryURLs) {
                         //if protocol is only injvm ,not register
